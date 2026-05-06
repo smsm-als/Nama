@@ -179,6 +179,22 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);display:flex;justify-
 .badge.show{display:flex;}
 .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--leaf);color:white;padding:10px 24px;border-radius:20px;font-size:13px;font-weight:700;transition:transform 0.4s;z-index:2000;white-space:nowrap;}
 .toast.show{transform:translateX(-50%) translateY(0);}
+
+/* أيقونة العين وتنبيه الحركة */
+.motion-eye {
+  width: 30px; height: 30px; background: white; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: 0.3s;
+}
+.motion-eye.alert {
+  background: var(--danger); color: white;
+  animation: eyeBlink 0.5s infinite alternate;
+}
+@keyframes eyeBlink { from { transform: scale(1); opacity: 1; } to { transform: scale(1.2); opacity: 0.7; } }
+
+/* سطر الـ Viewport للابتوب */
+@media (min-width: 1000px) { .app { width: 85% !important; max-width: 1200px; margin: 0 auto; } }
 </style>
 </head>
 <body>
@@ -246,9 +262,12 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);display:flex;justify-
     </div>
 
     <div class="dash-body">
-      <div style="text-align: right; width: 100%; padding: 0 10px;">
-        <span style="font-size: 12px; font-weight: 800; color: var(--leaf);">✨ حالة البيئة: </span>
-        <span id="env-status" style="font-size: 12px; color: var(--textmid); font-weight: 700;">جاري القراءة...</span>
+      <div style="text-align: right; width: 100%; padding: 0 10px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="font-size: 12px; font-weight: 800; color: var(--leaf);">✨ حالة البيئة: </span>
+          <span id="env-status" style="font-size: 12px; color: var(--textmid); font-weight: 700;">جاري القراءة...</span>
+        </div>
+        <div class="motion-eye" id="eye-icon">👁️</div>
       </div>
 
       <div class="gauge-item">
@@ -318,7 +337,7 @@ body{font-family:'Tajawal',sans-serif;background:var(--bg);display:flex;justify-
         <div id="ai-result" class="ai-result">
           <h4 style="color:var(--danger); margin-bottom:5px;">التشخيص المقترح:</h4>
           <p id="ai-diag" style="font-size:13px; color:var(--text); line-height:1.6;"></p>
-          <div style="background:var(--sand); padding:10px; border-radius:10px; margin-top:10px; font-size:11px; color:var(--leaf); font-weight:800;">💡 نصيحة: تأكد من موازنة الري وتجنب أشعة الشمس المباشرة وقت الظهيرة.</div>
+          <div id="ai-tip" style="background:var(--sand); padding:10px; border-radius:10px; margin-top:10px; font-size:11px; color:var(--leaf); font-weight:800;"></div>
         </div>
       </div>
     </div>
@@ -349,7 +368,30 @@ function createParticles() { const container = document.getElementById('particle
 createParticles();
 window.addEventListener('load',()=>setTimeout(()=>document.getElementById('splash').classList.add('hide'),2500));
 
-// AI
+// AI Diagnostics Logic
+const aiDiagnostics = [
+  {
+    diag: "نقص في عنصر النيتروجين ⚠️",
+    desc: "الأوراق المصفرة من الأسفل تشير إلى حاجة النبات لسماد عضوي متوازن وزيادة طفيفة في جدول الري.",
+    tip: "💡 نصيحة: استخدم سماداً غنياً بالنيتروجين لتعزيز اللون الأخضر."
+  },
+  {
+    diag: "إصابة بآفة (حشرات المَن) 🐛",
+    desc: "تم رصد أنماط تشير إلى وجود حشرات صغيرة على سطح الورقة. هذا يفسر بقع التآكل والالتواء.",
+    tip: "💡 نصيحة: امسح الأوراق بزيت النيم أو محلول صابوني خفيف."
+  },
+  {
+    diag: "تعفن الجذور (بسبب الري الزائد) 💧",
+    desc: "ذبول الأوراق رغم رطوبة التربة يشير إلى اختناق الجذور. هناك سوء في تصريف المياه.",
+    tip: "💡 نصيحة: توقف عن الري فوراً وتأكد من وجود ثقوب تصريف في الحوض."
+  },
+  {
+    diag: "نباتك سليم وبصحة ممتازة! ✨",
+    desc: "التحليل يظهر أنسجة قوية وتوزيعاً مثالياً للكلوروفيل في الأوراق المرفوعة.",
+    tip: "💡 نصيحة: استمر في نفس نظام العناية، نبتتك تشكرك!"
+  }
+];
+
 function handleAIUpload(event) {
   const file = event.target.files[0]; if(!file) return;
   const reader = new FileReader();
@@ -357,14 +399,22 @@ function handleAIUpload(event) {
   const status = document.getElementById('ai-status');
   const result = document.getElementById('ai-result');
   const diag = document.getElementById('ai-diag');
+  const tip = document.getElementById('ai-tip');
+
   reader.onload = function(e) {
     preview.src = e.target.result; preview.style.display = 'block';
     status.style.display = 'block'; result.style.display = 'none';
+    
     setTimeout(() => {
       status.textContent = "يتم الآن مقارنة الأوراق مع قاعدة البيانات...";
       setTimeout(() => {
         status.style.display = 'none'; result.style.display = 'block';
-        diag.innerHTML = "يبدو أن نبتتك تعاني من <b>نقص في عنصر النيتروجين</b>. الأوراق المصفرة تشير إلى حاجة النبات لسماد عضوي متوازن وزيادة طفيفة في جدول الري.";
+        
+        // اختيار تشخيص عشوائي
+        const randomRes = aiDiagnostics[Math.floor(Math.random() * aiDiagnostics.length)];
+        diag.innerHTML = `<b>${randomRes.diag}</b><br>${randomRes.desc}`;
+        tip.textContent = randomRes.tip;
+        
         showToast("اكتمل التحليل بنجاح ✅");
       }, 2500);
     }, 1500);
@@ -431,7 +481,7 @@ async function connectBLE() {
 
 function startDemo(){
     setConnected(true);
-    connInterval = setInterval(()=>{ updateUIAll({ temp: (20 + Math.random()*15).toFixed(1), soil: (30 + Math.random()*40).toFixed(1), air: (40 + Math.random()*20).toFixed(1) }); }, 2000);
+    connInterval = setInterval(()=>{ updateUIAll({ temp: (20 + Math.random()*15).toFixed(1), soil: (30 + Math.random()*40).toFixed(1), air: (40 + Math.random()*20).toFixed(1), motion: Math.random() > 0.8 ? 1 : 0 }); }, 2000);
 }
 
 function setConnected(state) {
@@ -451,6 +501,8 @@ function updateUIAll(data) {
     updateGauge('air', data.air, 100); 
 
     const env = document.getElementById('env-status');
+    const eye = document.getElementById('eye-icon');
+
     if(data.soil > 40 && data.temp < 30) {
         env.textContent = "بيئة مثالية للنمو المستدام 🌿";
         env.style.color = "var(--green)";
@@ -463,6 +515,15 @@ function updateUIAll(data) {
     }
 
     if(data.soil < 35) addAlert("⚠️ تحذير: رطوبة التربة منخفضة جداً!"); 
+    
+    // فحص الحركة وتغيير حالة أيقونة العين
+    if(data.motion == 1) {
+        eye.classList.add('alert');
+        addAlert("⚠️ رصد حركة: احتمال وجود حشرة أو طائر قرب النبتة!");
+        showToast("تنبيه: حركة مريبة! 🚨");
+    } else {
+        eye.classList.remove('alert');
+    }
 }
 
 function updateGauge(id, val, max){ document.getElementById('v-'+id).textContent = val; let offset = 345 - (val/max)*345; document.getElementById('ring-'+id).style.strokeDashoffset = offset; }
